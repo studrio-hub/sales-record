@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sales Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222536;
+    --surface3: #2a2e40;
+    --border: #2e3248;
+    --border2: #3a3f5c;
+    --accent: #4f8ef7;
+    --accent2: #3a6fd8;
+    --green: #22c55e;
+    --green2: #16a34a;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --text: #e8eaf0;
+    --text2: #9097b0;
+    --text3: #6b7299;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 5px;
+    --shadow: 0 4px 20px rgba(0,0,0,0.4);
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system,'SF Pro Display','Segoe UI',sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100dvh; overscroll-behavior: none;
+  }
+  /* ─── TOPBAR ─── */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(15,17,23,0.94); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px; display: flex; align-items: center; gap: 10px;
+  }
+  .topbar-title { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; flex: 1; }
+  .topbar-sub { font-size: 11px; color: var(--text3); }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: var(--radius-xs);
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; transition: background 0.15s;
+  }
+  .icon-btn:active { background: var(--surface3); }
+  /* ─── BOTTOM NAV ─── */
+  .bottomnav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(15,17,23,0.96); backdrop-filter: blur(16px);
+    border-top: 1px solid var(--border); display: flex;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 10px 4px 8px; cursor: pointer; gap: 3px;
+    color: var(--text3); transition: color 0.15s; font-size: 9.5px; font-weight: 500;
+    letter-spacing: 0.3px; user-select: none;
+  }
+  .nav-item .nav-icon { font-size: 20px; line-height: 1; }
+  .nav-item.active { color: var(--accent); }
+  .nav-item:active { opacity: 0.7; }
+  /* ─── PAGES ─── */
+  .page { display: none; padding: 14px 14px 90px; min-height: calc(100dvh - 62px - 56px); }
+  .page.active { display: block; }
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px;
+  }
+  /* ─── DATE STRIP ─── */
+  .date-strip {
+    background: linear-gradient(135deg,#1e2236,#222a40);
+    border: 1px solid var(--border2); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px;
+  }
+  .date-icon { font-size: 26px; }
+  .date-info { flex: 1; }
+  .date-main { font-size: 16px; font-weight: 700; }
+  .date-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .date-edit {
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-xs); padding: 6px 12px;
+    color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  /* ─── CATEGORY HEADER ─── */
+  .category-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; margin: 14px 0 6px;
+    border-radius: var(--radius-xs);
+    background: var(--surface2); border-left: 3px solid var(--accent);
+  }
+  .category-header-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .category-header-name { font-size: 13px; font-weight: 700; color: var(--text2); letter-spacing: 0.5px; text-transform: uppercase; }
+  .category-header-count { font-size: 11px; color: var(--text3); margin-left: auto; }
+  /* ─── SKU CARD ─── */
+  .sku-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 10px; overflow: hidden;
+  }
+  .sku-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; cursor: pointer; user-select: none; position: relative;
+  }
+  .sku-drag { color: var(--text3); font-size: 18px; cursor: grab; padding: 4px; touch-action: none; }
+  .sku-color-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 8px currentColor; }
+  .sku-name { flex: 1; font-size: 15px; font-weight: 600; }
+  .sku-total { font-size: 14px; font-weight: 700; color: var(--green); }
+  .sku-chevron { color: var(--text3); font-size: 14px; transition: transform 0.2s; }
+  .sku-card.open .sku-chevron { transform: rotate(180deg); }
+  .sku-body { display: none; border-top: 1px solid var(--border); }
+  .sku-card.open .sku-body { display: block; }
+  .sku-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+  .field-cell { background: var(--surface); padding: 10px 12px; }
+  .field-cell.full { grid-column: 1 / -1; }
+  .field-label { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+  .field-input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-xs); padding: 9px 11px;
+    color: var(--text); font-size: 16px; font-weight: 500;
+    outline: none; -webkit-appearance: none; transition: border-color 0.15s;
+  }
+  .field-input:focus { border-color: var(--accent); }
+  .field-input.computed { background: var(--surface3); color: var(--green); border-color: transparent; font-weight: 700; }
+  .field-input[readonly] { cursor: default; }
+  .sku-price-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-top: 1px solid var(--border); background: var(--surface);
+  }
+  .price-label { font-size: 12px; color: var(--text3); flex: 1; }
+  .price-input {
+    width: 110px; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-xs); padding: 7px 10px;
+    color: var(--amber); font-size: 15px; font-weight: 600;
+    outline: none; text-align: right; -webkit-appearance: none;
+  }
+  .price-input:focus { border-color: var(--amber); }
+  /* ─── TOTALS BAR ─── */
+  .totals-bar {
+    background: linear-gradient(135deg,#1a2e1a,#1e3520);
+    border: 1px solid #2a5a2a; border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .totals-label { font-size: 13px; font-weight: 600; color: #86efac; }
+  .totals-value { font-size: 22px; font-weight: 800; color: var(--green); }
+  /* ─── BUTTONS ─── */
+  .btn {
+    width: 100%; padding: 14px; border-radius: var(--radius);
+    font-size: 15px; font-weight: 700; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all 0.15s; letter-spacing: 0.2px;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:active { background: var(--accent2); }
+  .btn-success { background: var(--green); color: #fff; }
+  .btn-success:active { background: var(--green2); }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border2); }
+  .btn-outline:active { background: var(--surface2); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-sm { padding: 9px 14px; font-size: 13px; border-radius: var(--radius-xs); width: auto; }
+  /* ─── MODALS ─── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    display: flex; align-items: flex-end; padding: 0;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal-sheet {
+    background: var(--surface); border-radius: 20px 20px 0 0;
+    padding: 20px 16px 32px; width: 100%; max-height: 85dvh; overflow-y: auto;
+  }
+  .modal-handle { width: 40px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 18px; }
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+  /* ─── FORM ─── */
+  .form-row { margin-bottom: 14px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+  .form-input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-xs); padding: 12px 14px;
+    color: var(--text); font-size: 16px; outline: none; transition: border-color 0.15s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  /* ─── COLOR PICKER ─── */
+  .color-grid { display: grid; grid-template-columns: repeat(8,1fr); gap: 8px; margin-bottom: 10px; }
+  .color-swatch {
+    aspect-ratio: 1; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; transition: all 0.15s;
+  }
+  .color-swatch.selected { border-color: #fff; transform: scale(1.15); }
+  /* ─── MANAGE ITEMS ─── */
+  .manage-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-xs); padding: 12px 12px; margin-bottom: 8px;
+    cursor: grab; touch-action: none;
+  }
+  .manage-item:active { cursor: grabbing; }
+  .manage-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .manage-name { flex: 1; font-size: 14px; font-weight: 600; }
+  .manage-sub { font-size: 11px; color: var(--text3); }
+  .manage-actions { display: flex; gap: 6px; }
+  .mini-btn {
+    width: 32px; height: 32px; border-radius: 6px; border: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; transition: opacity 0.15s;
+  }
+  .mini-btn:active { opacity: 0.6; }
+  .mini-edit { background: rgba(79,142,247,0.15); color: var(--accent); }
+  .mini-del { background: rgba(239,68,68,0.15); color: var(--red); }
+  .drag-over { border: 2px dashed var(--accent) !important; background: rgba(79,142,247,0.1) !important; }
+  /* ─── REVIEW ─── */
+  .review-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .review-row:last-child { border-bottom: none; }
+  .review-key { font-size: 13px; color: var(--text2); }
+  .review-val { font-size: 13px; font-weight: 600; }
+  .review-sku-name {
+    font-size: 14px; font-weight: 700; margin: 14px 0 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  /* ─── REPORTS ─── */
+  .report-tabs {
+    display: flex; gap: 6px; margin-bottom: 14px;
+    overflow-x: auto; padding-bottom: 2px; scrollbar-width: none;
+  }
+  .report-tabs::-webkit-scrollbar { display: none; }
+  .rtab {
+    padding: 7px 16px; border-radius: 20px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text2); font-size: 13px; font-weight: 600;
+    cursor: pointer; white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
+  }
+  .rtab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .report-section { display: none; }
+  .report-section.active { display: block; }
+  .summary-metric {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .metric-label { font-size: 11px; color: var(--text3); font-weight: 600; text-transform: uppercase; }
+  .metric-value { font-size: 22px; font-weight: 800; color: var(--green); }
+  .metric-sub { font-size: 11px; color: var(--text3); }
+  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .report-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .report-table th {
+    background: var(--surface3); padding: 8px 10px; text-align: left;
+    font-weight: 600; color: var(--text2); border-bottom: 1px solid var(--border2);
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .report-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .report-table tr:last-child td { border-bottom: none; }
+  .report-table .tot { font-weight: 700; color: var(--green); }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text3); }
+  .empty-icon { font-size: 44px; margin-bottom: 12px; }
+  .empty-title { font-size: 16px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+  /* ─── STEP INDICATOR ─── */
+  .step-row { display: flex; align-items: center; gap: 0; margin-bottom: 18px; }
+  .step-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .step-dot {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid var(--border2); background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: var(--text3); transition: all 0.2s;
+  }
+  .step-dot.done { background: var(--green); border-color: var(--green); color: #fff; }
+  .step-dot.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step-label { font-size: 10px; color: var(--text3); font-weight: 500; }
+  .step-line { flex: 1; height: 2px; background: var(--border2); margin-bottom: 14px; }
+  .step-line.done { background: var(--green); }
+  .drag-ghost { opacity: 0.4; border: 2px dashed var(--accent) !important; }
+  @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .success-icon { animation: popIn 0.3s ease-out; font-size: 60px; margin-bottom: 16px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+  .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge-blue { background: rgba(79,142,247,0.15); color: var(--accent); }
+  .badge-amber { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .separator { height: 1px; background: var(--border); margin: 12px 0; }
+  .hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  input[type="date"] { color-scheme: dark; }
+  /* ─── MANAGE TABS ─── */
+  .mgr-tabs { display: flex; gap: 0; margin-bottom: 14px; border-radius: var(--radius-xs); overflow: hidden; border: 1px solid var(--border2); }
+  .mgr-tab {
+    flex: 1; padding: 10px 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+    background: var(--surface2); color: var(--text3); transition: all 0.15s; text-align: center;
+  }
+  .mgr-tab.active { background: var(--accent); color: #fff; }
+  .mgr-panel { display: none; }
+  .mgr-panel.active { display: block; }
+  /* ─── NO CATEGORY PILL ─── */
+  .cat-select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-xs); padding: 12px 14px;
+    color: var(--text); font-size: 16px; outline: none; appearance: none; cursor: pointer;
+  }
+  .cat-select:focus { border-color: var(--accent); }
+  @media (min-width: 480px) {
+    .page { max-width: 560px; margin: 0 auto; }
+    .bottomnav { max-width: 560px; left: 50%; transform: translateX(-50%); border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+    .topbar { max-width: 560px; margin: 0 auto; }
+    .modal-sheet { border-radius: 20px; margin: auto; max-width: 480px; }
+    .modal-overlay { align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── TOP BAR ─── -->
+<div class="topbar">
+  <div>
+    <div class="topbar-title" id="topbarTitle">📦 Sales Report</div>
+    <div class="topbar-sub" id="topbarSub">Enter today's data</div>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px;">
+    <button class="icon-btn" onclick="openManager()" title="Manage SKUs & Categories">⚙️</button>
+  </div>
+</div>
+
+<!-- ─── PAGES ─── -->
+
+<!-- PAGE: ENCODE -->
+<div class="page active" id="page-encode">
+  <div class="date-strip">
+    <div class="date-icon">📅</div>
+    <div class="date-info">
+      <div class="date-main" id="displayDate">—</div>
+      <div class="date-sub" id="displayDay">—</div>
+    </div>
+    <div class="date-edit" onclick="openDatePicker()">Change</div>
+  </div>
+  <div id="skuList"></div>
+  <div class="totals-bar">
+    <span class="totals-label">Grand Total Sales</span>
+    <span class="totals-value" id="grandTotal">₱0.00</span>
+  </div>
+  <button class="btn btn-primary" onclick="goReview()">Review Entry →</button>
+</div>
+
+<!-- PAGE: REVIEW -->
+<div class="page" id="page-review">
+  <div class="step-row">
+    <div class="step-item">
+      <div class="step-dot done">✓</div>
+      <div class="step-label">Encode</div>
+    </div>
+    <div class="step-line done"></div>
+    <div class="step-item">
+      <div class="step-dot active">2</div>
+      <div class="step-label">Review</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item">
+      <div class="step-dot">3</div>
+      <div class="step-label">Export</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Entry Summary</div>
+    <div id="reviewContent"></div>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:4px;">
+    <button class="btn btn-outline" style="flex:0 0 auto;width:auto;padding:14px 20px;" onclick="goPage('encode')">← Back</button>
+    <button class="btn btn-success" style="flex:1;" onclick="submitEntry()">Submit & Download ↓</button>
+  </div>
+</div>
+
+<!-- PAGE: SUCCESS -->
+<div class="page" id="page-success" style="text-align:center;padding-top:60px;">
+  <div class="success-icon">✅</div>
+  <div style="font-size:22px;font-weight:800;margin-bottom:8px;">Entry Saved!</div>
+  <div style="color:var(--text3);margin-bottom:28px;">Spreadsheet downloaded successfully.</div>
+  <button class="btn btn-primary" onclick="newEntry()" style="margin-bottom:10px;">+ New Entry</button>
+  <button class="btn btn-outline" onclick="goPage('reports')">View Reports</button>
+</div>
+
+<!-- PAGE: REPORTS -->
+<div class="page" id="page-reports">
+  <div class="report-tabs">
+    <div class="rtab active" onclick="switchReport('daily',this)">Daily</div>
+    <div class="rtab" onclick="switchReport('weekly',this)">Weekly</div>
+    <div class="rtab" onclick="switchReport('monthly',this)">Monthly</div>
+    <div class="rtab" onclick="switchReport('yearly',this)">Yearly</div>
+  </div>
+  <div id="report-daily" class="report-section active"></div>
+  <div id="report-weekly" class="report-section"></div>
+  <div id="report-monthly" class="report-section"></div>
+  <div id="report-yearly" class="report-section"></div>
+</div>
+
+<!-- ─── BOTTOM NAV ─── -->
+<div class="bottomnav">
+  <div class="nav-item active" id="nav-encode" onclick="goPage('encode')">
+    <span class="nav-icon">✏️</span>Encode
+  </div>
+  <div class="nav-item" id="nav-review" onclick="goPage('review')">
+    <span class="nav-icon">👁️</span>Review
+  </div>
+  <div class="nav-item" id="nav-reports" onclick="goPage('reports')">
+    <span class="nav-icon">📊</span>Reports
+  </div>
+</div>
+
+<!-- ─── DATE MODAL ─── -->
+<div class="modal-overlay hidden" id="dateModal" onclick="if(event.target===this)closeDateModal()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Select Date</div>
+    <div class="form-row">
+      <input type="date" class="form-input" id="datePicker" style="font-size:16px;">
+    </div>
+    <button class="btn btn-primary" onclick="applyDate()">Apply</button>
+  </div>
+</div>
+
+<!-- ─── MANAGER MODAL (SKUs + Categories) ─── -->
+<div class="modal-overlay hidden" id="managerModal" onclick="if(event.target===this)closeManager()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Manage</div>
+    <div class="mgr-tabs">
+      <div class="mgr-tab active" onclick="switchMgrTab('skus',this)">📦 SKUs</div>
+      <div class="mgr-tab" onclick="switchMgrTab('cats',this)">🏷️ Categories</div>
+    </div>
+    <!-- SKUs Panel -->
+    <div class="mgr-panel active" id="mgrPanel-skus">
+      <div id="skuManagerList"></div>
+      <div class="separator"></div>
+      <button class="btn btn-primary btn-sm" onclick="openSkuForm()" style="width:100%;margin-bottom:8px;">+ Add New SKU</button>
+      <button class="btn btn-outline btn-sm" onclick="closeManager()" style="width:100%;">Done</button>
+    </div>
+    <!-- Categories Panel -->
+    <div class="mgr-panel" id="mgrPanel-cats">
+      <div id="catManagerList"></div>
+      <div class="separator"></div>
+      <button class="btn btn-primary btn-sm" onclick="openCatForm()" style="width:100%;margin-bottom:8px;">+ Add New Category</button>
+      <button class="btn btn-outline btn-sm" onclick="closeManager()" style="width:100%;">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SKU FORM MODAL ─── -->
+<div class="modal-overlay hidden" id="skuFormModal" onclick="if(event.target===this)closeSkuForm()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="skuFormTitle">Add SKU</div>
+    <div class="form-row">
+      <div class="form-label">Product Name</div>
+      <input type="text" class="form-input" id="skuNameInput" placeholder="e.g. Young n Tender">
+    </div>
+    <div class="form-row">
+      <div class="form-label">Unit Price (₱)</div>
+      <input type="number" class="form-input" id="skuPriceInput" placeholder="0.00" inputmode="decimal">
+    </div>
+    <div class="form-row">
+      <div class="form-label">Category</div>
+      <select class="cat-select" id="skuCategoryInput">
+        <option value="">— No Category —</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Label Color</div>
+      <div class="color-grid" id="colorGrid"></div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeSkuForm()">Cancel</button>
+      <button class="btn btn-primary" style="flex:1;" onclick="saveSku()">Save</button>
+    </div>
+    <input type="hidden" id="editSkuId" value="">
+  </div>
+</div>
+
+<!-- ─── CATEGORY FORM MODAL ─── -->
+<div class="modal-overlay hidden" id="catFormModal" onclick="if(event.target===this)closeCatForm()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="catFormTitle">Add Category</div>
+    <div class="form-row">
+      <div class="form-label">Category Name</div>
+      <input type="text" class="form-input" id="catNameInput" placeholder="e.g. Meat Products">
+    </div>
+    <div class="form-row">
+      <div class="form-label">Label Color</div>
+      <div class="color-grid" id="catColorGrid"></div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeCatForm()">Cancel</button>
+      <button class="btn btn-primary" style="flex:1;" onclick="saveCat()">Save</button>
+    </div>
+    <input type="hidden" id="editCatId" value="">
+  </div>
+</div>
+
+<script>
+// ─── CONSTANTS ────────────────────────────────────────────
+const COLOR_PALETTE = [
+  '#ef4444','#f97316','#eab308','#22c55e','#14b8a6','#3b82f6','#8b5cf6','#ec4899',
+  '#f87171','#fb923c','#facc15','#4ade80','#2dd4bf','#60a5fa','#a78bfa','#f472b6',
+  '#dc2626','#ea580c','#ca8a04','#16a34a','#0d9488','#2563eb','#7c3aed','#db2777',
+  '#fecaca','#fed7aa','#fef08a','#bbf7d0','#99f6e4','#bfdbfe','#ddd6fe','#fbcfe8',
+];
+
+// Non-computed input fields (text input, supports values like "54 (43)")
+const ENTRY_FIELDS = [
+  { key:'delivery',     label:'Delivery' },
+  { key:'beginning',    label:'Beginning Inv.' },
+  { key:'transform',    label:'Transformation' },
+  { key:'endInventory', label:'End Inventory' },
+  { key:'badOrder',     label:'Bad Order' },
+  { key:'pullOut',      label:'Pull Out' },
+];
+
+// All fields for review/export
+const ALL_FIELDS = [
+  { key:'delivery',     label:'Delivery' },
+  { key:'beginning',    label:'Beginning Inv.' },
+  { key:'transform',    label:'Transformation' },
+  { key:'endInventory', label:'End Inventory' },
+  { key:'sales',        label:'Sales',        computed:true },
+  { key:'badOrder',     label:'Bad Order' },
+  { key:'pullOut',      label:'Pull Out' },
+  { key:'totalAmount',  label:'Total Amount', computed:true },
+];
+
+// ─── STATE ────────────────────────────────────────────────
+let appState = {
+  currentDate: new Date().toISOString().slice(0,10),
+  skus: [],
+  categories: [],
+  entries: [],
+  selectedColor: COLOR_PALETTE[3],
+  selectedCatColor: COLOR_PALETTE[2],
+};
+
+// ─── STORAGE ──────────────────────────────────────────────
+function save() { localStorage.setItem('salesapp_v4', JSON.stringify(appState)); }
+function load() {
+  const d = localStorage.getItem('salesapp_v4');
+  // migrate from v3
+  const old = localStorage.getItem('salesapp_v3');
+  if (!d && old) {
+    try {
+      const o = JSON.parse(old);
+      appState = { ...appState, ...o, categories: [] };
+      appState.skus = (appState.skus || []).map(s => ({ ...s, categoryId: '' }));
+      save();
+    } catch(e) {}
+    return;
+  }
+  if (d) try { appState = { ...appState, ...JSON.parse(d) }; } catch(e) {}
+  if (!appState.categories) appState.categories = [];
+  if (!appState.skus || appState.skus.length === 0) {
+    appState.categories = [
+      { id:'cat1', name:'Meat Products', color:'#f97316' },
+    ];
+    appState.skus = [
+      { id:'sku1', name:'Young n Tender', color:'#22c55e', price:0, categoryId:'cat1' },
+      { id:'sku2', name:'Tocino Meat',    color:'#f97316', price:0, categoryId:'cat1' },
+      { id:'sku3', name:'Longganisa',     color:'#ef4444', price:0, categoryId:'cat1' },
+      { id:'sku4', name:'Chicken Inasal', color:'#eab308', price:0, categoryId:'cat1' },
+    ];
+  }
+}
+
+// ─── HELPERS ──────────────────────────────────────────────
+function fmt(v) { return '₱' + parseFloat(v||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtNum(v) { return parseFloat(v||0).toLocaleString('en-PH'); }
+function today() { return new Date().toISOString().slice(0,10); }
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-PH', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+}
+function uid() { return 'id_' + Math.random().toString(36).slice(2); }
+
+// Parse a value like "54 (43)" → extracts first number
+function parseNum(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  const n = parseFloat(String(v).replace(/[^0-9.\-]/g,''));
+  return isNaN(n) ? 0 : n;
+}
+
+// Get raw text value from input
+function getFieldValue(skuId, fieldKey) {
+  const el = document.querySelector(`[data-sku="${skuId}"][data-field="${fieldKey}"]`);
+  return el ? el.value : '';
+}
+
+// ─── COMPUTE ──────────────────────────────────────────────
+function computeSku(skuId) {
+  const beg = parseNum(getFieldValue(skuId,'beginning'));
+  const del = parseNum(getFieldValue(skuId,'delivery'));
+  const tra = parseNum(getFieldValue(skuId,'transform'));
+  const end = parseNum(getFieldValue(skuId,'endInventory'));
+  const bo  = parseNum(getFieldValue(skuId,'badOrder'));
+  const po  = parseNum(getFieldValue(skuId,'pullOut'));
+
+  const sales = Math.max(0, beg + del + tra - end - bo - po);
+  const salesEl = document.querySelector(`[data-sku="${skuId}"][data-field="sales"]`);
+  if (salesEl) salesEl.value = sales;
+
+  const sku = appState.skus.find(s => s.id === skuId);
+  const price = parseFloat(sku?.price || 0);
+  const total = sales * price;
+  const totalEl = document.querySelector(`[data-sku="${skuId}"][data-field="totalAmount"]`);
+  if (totalEl) totalEl.value = total.toFixed(2);
+
+  const hdr = document.getElementById(`total_${skuId}`);
+  if (hdr) hdr.textContent = fmt(total);
+
+  updateGrandTotal();
+}
+
+function updateGrandTotal() {
+  let grand = 0;
+  appState.skus.forEach(sku => {
+    const el = document.querySelector(`[data-sku="${sku.id}"][data-field="totalAmount"]`);
+    grand += parseFloat(el?.value || 0);
+  });
+  document.getElementById('grandTotal').textContent = fmt(grand);
+}
+
+// ─── PAGE NAVIGATION ──────────────────────────────────────
+function goPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const nav = document.getElementById('nav-' + name);
+  if (nav) nav.classList.add('active');
+  if (name === 'reports') renderReports();
+  updateTopbar(name);
+}
+
+function updateTopbar(name) {
+  const titles = { encode:'📦 Sales Report', review:'👁️ Review Entry', reports:'📊 Reports', success:'✅ Done' };
+  const subs   = { encode:"Enter today's data", review:'Check before submitting', reports:'Summary & history', success:'' };
+  document.getElementById('topbarTitle').textContent = titles[name] || '📦 Sales Report';
+  document.getElementById('topbarSub').textContent   = subs[name]   || '';
+}
+
+// ─── RENDER SKU LIST (grouped by category) ────────────────
+function renderSkuList() {
+  const container = document.getElementById('skuList');
+  container.innerHTML = '';
+
+  // Group SKUs by category
+  const catMap = {};
+  const uncategorized = [];
+  appState.skus.forEach(sku => {
+    if (sku.categoryId) {
+      if (!catMap[sku.categoryId]) catMap[sku.categoryId] = [];
+      catMap[sku.categoryId].push(sku);
+    } else {
+      uncategorized.push(sku);
+    }
+  });
+
+  function renderSkuCard(sku) {
+    const card = document.createElement('div');
+    card.className = 'sku-card';
+    card.dataset.skuId = sku.id;
+    card.innerHTML = `
+      <div class="sku-header" onclick="toggleSku('${sku.id}',event)">
+        <span class="sku-drag" data-drag="${sku.id}">⠿</span>
+        <span class="sku-color-dot" style="background:${sku.color};color:${sku.color};"></span>
+        <span class="sku-name" style="color:${sku.color};">${sku.name}</span>
+        <span class="sku-total" id="total_${sku.id}">₱0.00</span>
+        <span class="sku-chevron">▾</span>
+      </div>
+      <div class="sku-body">
+        <div class="sku-grid">
+          ${ENTRY_FIELDS.map(f => `
+            <div class="field-cell">
+              <div class="field-label">${f.label}</div>
+              <input class="field-input" type="text" inputmode="text"
+                data-sku="${sku.id}" data-field="${f.key}"
+                placeholder="0" oninput="computeSku('${sku.id}')">
+            </div>
+          `).join('')}
+          <div class="field-cell">
+            <div class="field-label">Sales <span class="badge badge-blue">auto</span></div>
+            <input class="field-input computed" type="text" readonly
+              data-sku="${sku.id}" data-field="sales" value="0">
+          </div>
+          <div class="field-cell">
+            <div class="field-label">Total Amount <span class="badge badge-green">auto</span></div>
+            <input class="field-input computed" type="text" readonly
+              data-sku="${sku.id}" data-field="totalAmount" value="0">
+          </div>
+        </div>
+        <div class="sku-price-row">
+          <span class="price-label">Unit Price (₱)</span>
+          <input class="price-input" type="number" inputmode="decimal" min="0"
+            placeholder="0.00" value="${sku.price || ''}"
+            oninput="updatePrice('${sku.id}',this.value)">
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  }
+
+  // Render by category order, then uncategorized
+  appState.categories.forEach(cat => {
+    const skus = catMap[cat.id] || [];
+    if (skus.length === 0) return;
+    const header = document.createElement('div');
+    header.className = 'category-header';
+    header.style.borderLeftColor = cat.color;
+    header.innerHTML = `
+      <span class="category-header-dot" style="background:${cat.color};"></span>
+      <span class="category-header-name">${cat.name}</span>
+      <span class="category-header-count">${skus.length} SKU${skus.length!==1?'s':''}</span>
+    `;
+    container.appendChild(header);
+    skus.forEach(renderSkuCard);
+  });
+
+  if (uncategorized.length > 0) {
+    if (appState.categories.length > 0) {
+      const header = document.createElement('div');
+      header.className = 'category-header';
+      header.style.borderLeftColor = 'var(--text3)';
+      header.innerHTML = `
+        <span class="category-header-name" style="color:var(--text3);">Uncategorized</span>
+        <span class="category-header-count">${uncategorized.length} SKU${uncategorized.length!==1?'s':''}</span>
+      `;
+      container.appendChild(header);
+    }
+    uncategorized.forEach(renderSkuCard);
+  }
+
+  setupDragDrop();
+}
+
+function toggleSku(id, e) {
+  if (e.target.dataset.drag) return;
+  const card = document.querySelector(`.sku-card[data-sku-id="${id}"]`);
+  card.classList.toggle('open');
+}
+
+function updatePrice(skuId, val) {
+  const sku = appState.skus.find(s => s.id === skuId);
+  if (sku) { sku.price = parseFloat(val) || 0; save(); computeSku(skuId); }
+}
+
+// ─── DRAG & DROP ──────────────────────────────────────────
+function setupDragDrop() {
+  const list = document.getElementById('skuList');
+  let dragging = null;
+
+  list.addEventListener('touchstart', e => {
+    const handle = e.target.closest('[data-drag]');
+    if (!handle) return;
+    e.preventDefault();
+    dragging = handle.closest('.sku-card');
+    dragging.classList.add('drag-ghost');
+  }, { passive: false });
+
+  list.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    e.preventDefault();
+    const y = e.touches[0].clientY;
+    const cards = [...list.querySelectorAll('.sku-card')].filter(c => c !== dragging);
+    for (let c of cards) {
+      const rect = c.getBoundingClientRect();
+      if (y < rect.top + rect.height / 2) { list.insertBefore(dragging, c); break; }
+      else if (c === cards[cards.length-1] && y > rect.bottom) list.appendChild(dragging);
+    }
+  }, { passive: false });
+
+  list.addEventListener('touchend', () => {
+    if (!dragging) return;
+    dragging.classList.remove('drag-ghost');
+    const newOrder = [...list.querySelectorAll('.sku-card')].map(c => c.dataset.skuId);
+    appState.skus.sort((a,b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+    save(); dragging = null;
+  });
+
+  let mouseStart = null;
+  list.addEventListener('mousedown', e => {
+    const handle = e.target.closest('[data-drag]');
+    if (!handle) return;
+    dragging = handle.closest('.sku-card');
+    dragging.classList.add('drag-ghost');
+    mouseStart = e.clientY;
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const cards = [...list.querySelectorAll('.sku-card')].filter(c => c !== dragging);
+    for (let c of cards) {
+      const rect = c.getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) { list.insertBefore(dragging, c); break; }
+      else if (c === cards[cards.length-1]) list.appendChild(dragging);
+    }
+  });
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging.classList.remove('drag-ghost');
+    const newOrder = [...list.querySelectorAll('.sku-card')].map(c => c.dataset.skuId);
+    appState.skus.sort((a,b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+    save(); dragging = null;
+  });
+}
+
+// ─── DATE ─────────────────────────────────────────────────
+function openDatePicker() {
+  document.getElementById('datePicker').value = appState.currentDate;
+  document.getElementById('dateModal').classList.remove('hidden');
+}
+function closeDateModal() { document.getElementById('dateModal').classList.add('hidden'); }
+function applyDate() {
+  const v = document.getElementById('datePicker').value;
+  if (v) { appState.currentDate = v; save(); updateDateDisplay(); }
+  closeDateModal();
+}
+function updateDateDisplay() {
+  document.getElementById('displayDate').textContent = appState.currentDate;
+  document.getElementById('displayDay').textContent = formatDate(appState.currentDate);
+}
+
+// ─── MANAGER MODAL ────────────────────────────────────────
+function openManager() {
+  renderSkuManagerList();
+  renderCatManagerList();
+  document.getElementById('managerModal').classList.remove('hidden');
+}
+function closeManager() {
+  document.getElementById('managerModal').classList.add('hidden');
+  renderSkuList();
+}
+function switchMgrTab(tab, el) {
+  document.querySelectorAll('.mgr-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.mgr-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('mgrPanel-' + tab).classList.add('active');
+}
+
+// ─── SKU MANAGER ──────────────────────────────────────────
+function renderSkuManagerList() {
+  const el = document.getElementById('skuManagerList');
+  el.innerHTML = '';
+  if (appState.skus.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-title">No SKUs yet</div><div style="font-size:13px;color:var(--text3)">Add products to get started</div></div>';
+    return;
+  }
+  appState.skus.forEach(sku => {
+    const cat = appState.categories.find(c => c.id === sku.categoryId);
+    const item = document.createElement('div');
+    item.className = 'manage-item';
+    item.dataset.skuId = sku.id;
+    item.innerHTML = `
+      <span style="color:var(--text3);font-size:16px;cursor:grab;">⠿</span>
+      <span class="manage-dot" style="background:${sku.color};"></span>
+      <div style="flex:1;min-width:0;">
+        <div class="manage-name">${sku.name}</div>
+        ${cat ? `<div class="manage-sub">🏷️ ${cat.name}</div>` : '<div class="manage-sub" style="color:var(--text3)">No category</div>'}
+      </div>
+      <div class="manage-actions">
+        <button class="mini-btn mini-edit" onclick="openSkuForm('${sku.id}')">✏️</button>
+        <button class="mini-btn mini-del" onclick="deleteSku('${sku.id}')">🗑️</button>
+      </div>
+    `;
+    el.appendChild(item);
+  });
+  setupManagerDrag('skuManagerList', 'sku');
+}
+
+function setupManagerDrag(listId, type) {
+  const list = document.getElementById(listId);
+  let dragging = null;
+  list.addEventListener('touchstart', e => {
+    const handle = e.target.closest('.manage-item');
+    if (!handle) return;
+    dragging = handle; dragging.style.opacity = '0.5';
+  }, { passive: true });
+  list.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    e.preventDefault();
+    const y = e.touches[0].clientY;
+    const items = [...list.children].filter(c => c !== dragging);
+    for (let c of items) {
+      const rect = c.getBoundingClientRect();
+      if (y < rect.top + rect.height / 2) { list.insertBefore(dragging, c); break; }
+      else if (c === items[items.length-1]) list.appendChild(dragging);
+    }
+  }, { passive: false });
+  list.addEventListener('touchend', () => {
+    if (!dragging) return;
+    dragging.style.opacity = '';
+    if (type === 'sku') {
+      const newOrder = [...list.children].map(c => c.dataset.skuId);
+      appState.skus.sort((a,b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+    } else {
+      const newOrder = [...list.children].map(c => c.dataset.catId);
+      appState.categories.sort((a,b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+    }
+    save(); dragging = null;
+  });
+}
+
+// ─── SKU FORM ─────────────────────────────────────────────
+function buildColorGrid(gridId, stateKey) {
+  const grid = document.getElementById(gridId);
+  grid.innerHTML = '';
+  COLOR_PALETTE.forEach(c => {
+    const sw = document.createElement('div');
+    sw.className = 'color-swatch' + (c === appState[stateKey] ? ' selected' : '');
+    sw.style.background = c;
+    sw.onclick = () => {
+      appState[stateKey] = c;
+      grid.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+      sw.classList.add('selected');
+    };
+    grid.appendChild(sw);
+  });
+}
+
+function populateCategorySelect() {
+  const sel = document.getElementById('skuCategoryInput');
+  sel.innerHTML = '<option value="">— No Category —</option>';
+  appState.categories.forEach(cat => {
+    const o = document.createElement('option');
+    o.value = cat.id; o.textContent = cat.name;
+    sel.appendChild(o);
+  });
+}
+
+function openSkuForm(editId) {
+  const sku = editId ? appState.skus.find(s => s.id === editId) : null;
+  document.getElementById('skuFormTitle').textContent = sku ? 'Edit SKU' : 'Add SKU';
+  document.getElementById('skuNameInput').value = sku ? sku.name : '';
+  document.getElementById('skuPriceInput').value = sku ? (sku.price || '') : '';
+  document.getElementById('editSkuId').value = editId || '';
+  appState.selectedColor = sku ? sku.color : COLOR_PALETTE[3];
+  populateCategorySelect();
+  document.getElementById('skuCategoryInput').value = sku ? (sku.categoryId || '') : '';
+  buildColorGrid('colorGrid', 'selectedColor');
+  document.getElementById('skuFormModal').classList.remove('hidden');
+}
+function closeSkuForm() { document.getElementById('skuFormModal').classList.add('hidden'); }
+
+function saveSku() {
+  const name = document.getElementById('skuNameInput').value.trim();
+  if (!name) { alert('Please enter a product name.'); return; }
+  const price = parseFloat(document.getElementById('skuPriceInput').value) || 0;
+  const categoryId = document.getElementById('skuCategoryInput').value;
+  const editId = document.getElementById('editSkuId').value;
+  if (editId) {
+    const sku = appState.skus.find(s => s.id === editId);
+    if (sku) { sku.name = name; sku.color = appState.selectedColor; sku.price = price; sku.categoryId = categoryId; }
+  } else {
+    appState.skus.push({ id: uid(), name, color: appState.selectedColor, price, categoryId });
+  }
+  save(); closeSkuForm(); renderSkuManagerList();
+}
+
+function deleteSku(id) {
+  if (!confirm('Remove this SKU?')) return;
+  appState.skus = appState.skus.filter(s => s.id !== id);
+  save(); renderSkuManagerList();
+}
+
+// ─── CATEGORY MANAGER ─────────────────────────────────────
+function renderCatManagerList() {
+  const el = document.getElementById('catManagerList');
+  el.innerHTML = '';
+  if (appState.categories.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🏷️</div><div class="empty-title">No categories yet</div><div style="font-size:13px;color:var(--text3)">Add categories to group your SKUs</div></div>';
+    return;
+  }
+  appState.categories.forEach(cat => {
+    const skuCount = appState.skus.filter(s => s.categoryId === cat.id).length;
+    const item = document.createElement('div');
+    item.className = 'manage-item';
+    item.dataset.catId = cat.id;
+    item.innerHTML = `
+      <span style="color:var(--text3);font-size:16px;cursor:grab;">⠿</span>
+      <span class="manage-dot" style="background:${cat.color};"></span>
+      <div style="flex:1;min-width:0;">
+        <div class="manage-name">${cat.name}</div>
+        <div class="manage-sub">${skuCount} SKU${skuCount!==1?'s':''}</div>
+      </div>
+      <div class="manage-actions">
+        <button class="mini-btn mini-edit" onclick="openCatForm('${cat.id}')">✏️</button>
+        <button class="mini-btn mini-del" onclick="deleteCat('${cat.id}')">🗑️</button>
+      </div>
+    `;
+    el.appendChild(item);
+  });
+  setupManagerDrag('catManagerList', 'cat');
+}
+
+function openCatForm(editId) {
+  const cat = editId ? appState.categories.find(c => c.id === editId) : null;
+  document.getElementById('catFormTitle').textContent = cat ? 'Edit Category' : 'Add Category';
+  document.getElementById('catNameInput').value = cat ? cat.name : '';
+  document.getElementById('editCatId').value = editId || '';
+  appState.selectedCatColor = cat ? cat.color : COLOR_PALETTE[2];
+  buildColorGrid('catColorGrid', 'selectedCatColor');
+  document.getElementById('catFormModal').classList.remove('hidden');
+}
+function closeCatForm() { document.getElementById('catFormModal').classList.add('hidden'); }
+
+function saveCat() {
+  const name = document.getElementById('catNameInput').value.trim();
+  if (!name) { alert('Please enter a category name.'); return; }
+  const editId = document.getElementById('editCatId').value;
+  if (editId) {
+    const cat = appState.categories.find(c => c.id === editId);
+    if (cat) { cat.name = name; cat.color = appState.selectedCatColor; }
+  } else {
+    appState.categories.push({ id: uid(), name, color: appState.selectedCatColor });
+  }
+  save(); closeCatForm(); renderCatManagerList();
+}
+
+function deleteCat(id) {
+  const skuCount = appState.skus.filter(s => s.categoryId === id).length;
+  const msg = skuCount > 0
+    ? `This category has ${skuCount} SKU${skuCount!==1?'s':''}. They will become uncategorized. Remove anyway?`
+    : 'Remove this category?';
+  if (!confirm(msg)) return;
+  appState.categories = appState.categories.filter(c => c.id !== id);
+  appState.skus.forEach(s => { if (s.categoryId === id) s.categoryId = ''; });
+  save(); renderCatManagerList();
+}
+
+// ─── REVIEW ───────────────────────────────────────────────
+function goReview() { renderReviewContent(); goPage('review'); }
+
+function renderReviewContent() {
+  const el = document.getElementById('reviewContent');
+  const date = appState.currentDate;
+  let html = `
+    <div class="review-row"><span class="review-key">Date</span><span class="review-val">${date}</span></div>
+    <div class="review-row"><span class="review-key">SKUs</span><span class="review-val">${appState.skus.length}</span></div>
+  `;
+  let grand = 0;
+  appState.skus.forEach(sku => {
+    const total = parseFloat(getFieldValue(sku.id,'totalAmount')) || 0;
+    grand += total;
+    html += `
+      <div class="review-sku-name">
+        <span style="width:10px;height:10px;border-radius:50%;background:${sku.color};display:inline-block;flex-shrink:0;"></span>
+        ${sku.name}
+        <span class="badge badge-green" style="margin-left:auto;">${fmt(total)}</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px 12px;">
+        ${ALL_FIELDS.map(f => `
+          <div class="review-row" style="padding:6px 0;">
+            <span class="review-key">${f.label}</span>
+            <span class="review-val">${f.computed && f.key==='totalAmount' ? fmt(parseFloat(getFieldValue(sku.id,f.key))||0) : (getFieldValue(sku.id,f.key)||'0')}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  });
+  html += `
+    <div class="separator"></div>
+    <div class="review-row">
+      <span class="review-key" style="font-weight:700;font-size:15px;">Grand Total</span>
+      <span class="review-val" style="font-size:18px;color:var(--green);">${fmt(grand)}</span>
+    </div>
+  `;
+  el.innerHTML = html;
+}
+
+// ─── SUBMIT ───────────────────────────────────────────────
+function submitEntry() {
+  const date = appState.currentDate;
+  const skuData = appState.skus.map(sku => {
+    const data = { id: sku.id, name: sku.name, color: sku.color, price: sku.price || 0, categoryId: sku.categoryId || '' };
+    ALL_FIELDS.forEach(f => { data[f.key] = getFieldValue(sku.id, f.key); });
+    return data;
+  });
+  const entry = { date, skus: skuData, categories: JSON.parse(JSON.stringify(appState.categories)), ts: Date.now() };
+  appState.entries.push(entry);
+  save();
+  generateXLSX(entry);
+  goPage('success');
+}
+
+// ─── XLSX ─────────────────────────────────────────────────
+function hexToARGB(hex) {
+  const c = hex.replace('#','');
+  if (c.length === 3) return 'FF'+c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+  return 'FF'+c.toUpperCase();
+}
+function darkenHex(hex) {
+  let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  r=Math.floor(r*0.35); g=Math.floor(g*0.35); b=Math.floor(b*0.35);
+  return 'FF'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+function lightenHex(hex, factor=0.82) {
+  let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  r=Math.floor(r+(255-r)*factor); g=Math.floor(g+(255-g)*factor); b=Math.floor(b+(255-b)*factor);
+  return 'FF'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+function borderAll(color) {
+  const s = {style:'thin',color:{rgb:color}};
+  return {top:s,bottom:s,left:s,right:s};
+}
+function cell(ws, r, c, v, t, s) {
+  ws[XLSX.utils.encode_cell({r,c})] = { v, t: t||'s', s: s||{} };
+}
+
+function generateXLSX(entry) {
+  const wb = XLSX.utils.book_new();
+  const ws = {};
+  const merge = [];
+  let row = 0;
+
+  const cols = ['Product/SKU','Delivery','Beg. Inventory','Transformation','End Inventory','Sales','Bad Order','Pull Out','Total Amount'];
+  const colKeys = ['name','delivery','beginning','transform','endInventory','sales','badOrder','pullOut','totalAmount'];
+  const HEADER_BG = 'FF1E3A5F';
+  const HEADER_FG = 'FFFFFFFF';
+  const TITLE_BG  = 'FF0D1F36';
+  const CAT_BG    = 'FF1B2B40';
+  const TOTAL_BG  = 'FF162E1A';
+  const GRAND_BG  = 'FF0D1F36';
+
+  // ── Main Title ──
+  ws[XLSX.utils.encode_cell({r:row,c:0})] = {
+    v:'DAILY SALES REPORT', t:'s',
+    s:{ font:{bold:true,sz:20,name:'Calibri',color:{rgb:HEADER_FG}},
+        fill:{fgColor:{rgb:TITLE_BG}}, alignment:{horizontal:'center',vertical:'center'} }
+  };
+  merge.push({s:{r:row,c:0},e:{r:row,c:8}});
+  row++;
+
+  // ── Date ──
+  ws[XLSX.utils.encode_cell({r:row,c:0})] = {
+    v:`Date: ${entry.date}`, t:'s',
+    s:{ font:{bold:true,sz:11,name:'Calibri',color:{rgb:'FF7AAFED'}},
+        fill:{fgColor:{rgb:TITLE_BG}}, alignment:{horizontal:'center'} }
+  };
+  merge.push({s:{r:row,c:0},e:{r:row,c:8}});
+  row++;
+
+  // ── Spacer ──
+  for(let c=0;c<9;c++) ws[XLSX.utils.encode_cell({r:row,c})]={v:'',t:'s',s:{fill:{fgColor:{rgb:TITLE_BG}}}};
+  merge.push({s:{r:row,c:0},e:{r:row,c:8}}); row++;
+
+  // Group SKUs by category
+  const catMap = {};
+  const uncategorized = [];
+  entry.skus.forEach(sku => {
+    if (sku.categoryId) {
+      if (!catMap[sku.categoryId]) catMap[sku.categoryId] = [];
+      catMap[sku.categoryId].push(sku);
+    } else { uncategorized.push(sku); }
+  });
+
+  const categories = entry.categories || [];
+  const groups = [];
+  categories.forEach(cat => {
+    if (catMap[cat.id] && catMap[cat.id].length > 0)
+      groups.push({ label: cat.name, color: cat.color, skus: catMap[cat.id] });
+  });
+  if (uncategorized.length > 0)
+    groups.push({ label: null, color: null, skus: uncategorized });
+
+  let grandTotals = { delivery:0, beginning:0, transform:0, endInventory:0, sales:0, badOrder:0, pullOut:0, totalAmount:0 };
+
+  groups.forEach(group => {
+    // ── Category header ──
+    if (group.label) {
+      const catArgb = group.color ? hexToARGB(group.color) : 'FF4A90D9';
+      const catBg = group.color ? lightenHex(group.color, 0.78) : CAT_BG;
+      ws[XLSX.utils.encode_cell({r:row,c:0})] = {
+        v: `▌ ${group.label.toUpperCase()}`, t:'s',
+        s:{ font:{bold:true,sz:11,name:'Calibri',color:{rgb:catArgb}},
+            fill:{fgColor:{rgb:catBg}}, alignment:{horizontal:'left',vertical:'center'},
+            border: { bottom:{style:'medium',color:{rgb:catArgb}}, left:{style:'medium',color:{rgb:catArgb}} } }
+      };
+      for(let c=1;c<9;c++) ws[XLSX.utils.encode_cell({r:row,c})] = {
+        v:'', t:'s', s:{ fill:{fgColor:{rgb:catBg}},
+          border: { bottom:{style:'medium',color:{rgb:catArgb}} } }
+      };
+      merge.push({s:{r:row,c:0},e:{r:row,c:8}}); row++;
+    }
+
+    // ── Column headers ──
+    cols.forEach((h,ci) => {
+      ws[XLSX.utils.encode_cell({r:row,c:ci})] = {
+        v:h, t:'s',
+        s:{ font:{bold:true,sz:9,name:'Calibri',color:{rgb:HEADER_FG}},
+            fill:{fgColor:{rgb:HEADER_BG}},
+            alignment:{horizontal:'center',vertical:'center',wrapText:true},
+            border:borderAll('FF2A4E7A') }
+      };
+    });
+    row++;
+
+    // ── SKU rows ──
+    let catTotals = { delivery:0, beginning:0, transform:0, endInventory:0, sales:0, badOrder:0, pullOut:0, totalAmount:0 };
+
+    group.skus.forEach(sku => {
+      const skuArgb = hexToARGB(sku.color);
+      const skuBg   = lightenHex(sku.color, 0.88);
+      const skuFgDark = darkenHex(sku.color);
+
+      colKeys.forEach((k, ci) => {
+        const isName    = k === 'name';
+        const isMoney   = k === 'totalAmount';
+        const rawVal    = isName ? sku.name : (sku[k] || '0');
+        const numVal    = isName ? null : parseNum(rawVal);
+        const displayV  = isName ? sku.name : (String(rawVal).includes('(') ? String(rawVal) : numVal);
+        const cellType  = isName ? 's' : (String(rawVal).includes('(') ? 's' : 'n');
+
+        ws[XLSX.utils.encode_cell({r:row,c:ci})] = {
+          v: displayV, t: cellType,
+          s:{
+            font:{ bold: isName || isMoney, sz:10, name:'Calibri',
+                   color:{rgb: isName ? skuArgb : (isMoney ? 'FF1A6B3A' : 'FF22272E')} },
+            fill:{fgColor:{rgb: skuBg }},
+            alignment:{horizontal: isName?'left':(isMoney?'right':'center'), vertical:'center'},
+            numFmt: (isMoney && cellType==='n') ? '"₱"#,##0.00' : (!isName && cellType==='n' ? '#,##0.##' : ''),
+            border: borderAll('FFD4D9E4')
+          }
+        };
+
+        // Accumulate totals
+        if (!isName && cellType === 'n') {
+          catTotals[k] = (catTotals[k]||0) + numVal;
+          grandTotals[k] = (grandTotals[k]||0) + numVal;
+        }
+      });
+      row++;
+    });
+
+    // ── Category subtotal ──
+    const catColor = group.color ? hexToARGB(group.color) : '4A90D9';
+    const catSubBg = group.color ? lightenHex(group.color, 0.7) : 'FF1E304A';
+    colKeys.forEach((k, ci) => {
+      const isName  = k === 'name';
+      const isMoney = k === 'totalAmount';
+      const v = isName ? (group.label ? `${group.label} Total` : 'Subtotal') : catTotals[k];
+      ws[XLSX.utils.encode_cell({r:row,c:ci})] = {
+        v, t: isName ? 's' : 'n',
+        s:{
+          font:{bold:true,sz:10,name:'Calibri',color:{rgb: isName ? catColor : (isMoney?'FF1A6B3A':'FF22272E')}},
+          fill:{fgColor:{rgb: catSubBg}},
+          alignment:{horizontal: isName?'left':(isMoney?'right':'center'), vertical:'center'},
+          numFmt: isMoney ? '"₱"#,##0.00' : (!isName?'#,##0.##':''),
+          border: borderAll('FFB0BCC8')
+        }
+      };
+    });
+    row++;
+    // spacer between groups
+    for(let c=0;c<9;c++) ws[XLSX.utils.encode_cell({r:row,c})]={v:'',t:'s',s:{fill:{fgColor:{rgb:'FFFFFFFF'}}}};
+    merge.push({s:{r:row,c:0},e:{r:row,c:8}}); row++;
+  });
+
+  // ── GRAND TOTAL ──
+  colKeys.forEach((k,ci) => {
+    const isName  = k === 'name';
+    const isMoney = k === 'totalAmount';
+    const v = isName ? 'GRAND TOTAL' : grandTotals[k];
+    ws[XLSX.utils.encode_cell({r:row,c:ci})] = {
+      v, t: isName?'s':'n',
+      s:{
+        font:{bold:true,sz:12,name:'Calibri',color:{rgb: isMoney?'FF22DD77':'FFFFFFFF'}},
+        fill:{fgColor:{rgb:GRAND_BG}},
+        alignment:{horizontal: isName?'left':(isMoney?'right':'center'), vertical:'center'},
+        numFmt: isMoney ? '"₱"#,##0.00' : (!isName?'#,##0.##':''),
+        border: borderAll('FF1E3A5F')
+      }
+    };
+  });
+  row++;
+
+  // ── Footer ──
+  row++;
+  ws[XLSX.utils.encode_cell({r:row,c:0})] = {
+    v:`Generated by Sales Report App • ${new Date().toLocaleString()}`, t:'s',
+    s:{ font:{italic:true,sz:8,name:'Calibri',color:{rgb:'FF6B7299'}}, alignment:{horizontal:'center'} }
+  };
+  merge.push({s:{r:row,c:0},e:{r:row,c:8}});
+
+  ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:row+1,c:8}});
+  ws['!merges'] = merge;
+  ws['!cols'] = [{wch:24},{wch:11},{wch:14},{wch:14},{wch:13},{wch:10},{wch:11},{wch:11},{wch:15}];
+  ws['!rows'] = [{hpt:36},{hpt:18},{hpt:6}];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Daily Report');
+
+  // ── HISTORY SHEET ──
+  if (appState.entries.length > 0) {
+    const sw = {}; const sm = []; let sr = 0;
+    sw[XLSX.utils.encode_cell({r:sr,c:0})] = {
+      v:'SALES HISTORY', t:'s',
+      s:{font:{bold:true,sz:16,name:'Calibri',color:{rgb:HEADER_FG}},fill:{fgColor:{rgb:TITLE_BG}},alignment:{horizontal:'center'}}
+    };
+    sm.push({s:{r:sr,c:0},e:{r:sr,c:4}}); sr+=2;
+    ['Date','SKU','Category','Sales','Total Amount'].forEach((h,ci) => {
+      sw[XLSX.utils.encode_cell({r:sr,c:ci})] = {
+        v:h, t:'s',
+        s:{font:{bold:true,sz:10,name:'Calibri',color:{rgb:HEADER_FG}},fill:{fgColor:{rgb:HEADER_BG}},
+           alignment:{horizontal:'center'},border:borderAll('FF2A4E7A')}
+      };
+    }); sr++;
+    appState.entries.forEach((en, ei) => {
+      en.skus.forEach(sk => {
+        const cat = (en.categories||[]).find(c => c.id === sk.categoryId);
+        const bg = ei%2===0 ? 'FFF8F9FA' : 'FFF0F2F5';
+        [en.date, sk.name, cat?cat.name:'—', parseNum(sk.sales), parseNum(sk.totalAmount)].forEach((v,ci) => {
+          sw[XLSX.utils.encode_cell({r:sr,c:ci})] = {
+            v, t:ci>=3?'n':'s',
+            s:{font:{sz:10,name:'Calibri'},fill:{fgColor:{rgb:bg}},
+               alignment:{horizontal:ci>=3?'right':'left'},
+               numFmt:ci===4?'"₱"#,##0.00':(ci===3?'#,##0.##':''),
+               border:borderAll('FFD0D5E0')}
+          };
+        }); sr++;
+      });
+    });
+    sw['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:sr,c:4}});
+    sw['!merges'] = sm;
+    sw['!cols'] = [{wch:14},{wch:24},{wch:18},{wch:12},{wch:15}];
+    XLSX.utils.book_append_sheet(wb, sw, 'History');
+  }
+
+  XLSX.writeFile(wb, `SalesReport_${entry.date}.xlsx`);
+}
+
+// ─── NEW ENTRY ────────────────────────────────────────────
+function newEntry() {
+  document.querySelectorAll('[data-field]').forEach(el => {
+    if (!el.readOnly) el.value = '';
+    else el.value = '0';
+  });
+  document.querySelectorAll('.sku-total').forEach(el => el.textContent = '₱0.00');
+  document.getElementById('grandTotal').textContent = '₱0.00';
+  appState.currentDate = today();
+  save(); updateDateDisplay(); goPage('encode');
+}
+
+// ─── REPORTS ──────────────────────────────────────────────
+function switchReport(type, el) {
+  document.querySelectorAll('.rtab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.report-section').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('report-' + type).classList.add('active');
+}
+
+function renderReports() { renderDaily(); renderWeekly(); renderMonthly(); renderYearly(); }
+
+function totalFor(entries) {
+  let t = 0;
+  entries.forEach(e => e.skus.forEach(s => t += parseNum(s.totalAmount)));
+  return t;
+}
+
+function skuTotals(entries) {
+  const map = {};
+  entries.forEach(e => e.skus.forEach(s => {
+    if(!map[s.name]) map[s.name] = { name:s.name, color:s.color, sales:0, amount:0 };
+    map[s.name].sales += parseNum(s.sales);
+    map[s.name].amount += parseNum(s.totalAmount);
+  }));
+  return Object.values(map);
+}
+
+function reportHTML(title, icon, entries) {
+  if (!entries || entries.length === 0) {
+    return `<div class="empty-state"><div class="empty-icon">${icon}</div><div class="empty-title">No data yet</div><div style="font-size:13px;color:var(--text3)">Submit entries to see ${title.toLowerCase()} reports</div></div>`;
+  }
+  const grand = totalFor(entries);
+  const skus = skuTotals(entries);
+  const bestSku = [...skus].sort((a,b)=>b.amount-a.amount)[0];
+  return `
+    <div class="metrics-grid" style="margin-bottom:12px;">
+      <div class="summary-metric">
+        <span class="metric-label">Total Revenue</span>
+        <span class="metric-value" style="font-size:18px;">${fmt(grand)}</span>
+        <span class="metric-sub">${entries.length} entries</span>
+      </div>
+      <div class="summary-metric">
+        <span class="metric-label">Top SKU</span>
+        <span class="metric-value" style="font-size:14px;color:${bestSku?.color||'var(--green)'};">${bestSku?.name||'—'}</span>
+        <span class="metric-sub">${fmt(bestSku?.amount||0)}</span>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="report-table">
+        <thead><tr><th>SKU</th><th>Sales</th><th>Amount</th></tr></thead>
+        <tbody>
+          ${skus.map(s=>`
+            <tr>
+              <td><span style="display:inline-flex;align-items:center;gap:6px;">
+                <span style="width:8px;height:8px;border-radius:50%;background:${s.color};display:inline-block;"></span>
+                ${s.name}
+              </span></td>
+              <td style="text-align:center;">${fmtNum(s.sales)}</td>
+              <td class="tot" style="text-align:right;">${fmt(s.amount)}</td>
+            </tr>
+          `).join('')}
+          <tr style="background:var(--surface3);">
+            <td style="font-weight:700;">TOTAL</td><td></td>
+            <td class="tot" style="text-align:right;font-size:14px;">${fmt(grand)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderDaily() {
+  const el = document.getElementById('report-daily');
+  const d = appState.currentDate;
+  const todayEntries = appState.entries.filter(e => e.date === d);
+  el.innerHTML = `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Showing: <strong style="color:var(--text2);">${d}</strong></div>` + reportHTML('Daily','📅',todayEntries);
+}
+function renderWeekly() {
+  const el = document.getElementById('report-weekly');
+  const d = new Date(appState.currentDate+'T00:00:00');
+  const day = d.getDay();
+  const mon = new Date(d); mon.setDate(d.getDate()-(day===0?6:day-1));
+  const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+  const weekEntries = appState.entries.filter(e => {
+    const ed = new Date(e.date+'T00:00:00'); return ed>=mon && ed<=sun;
+  });
+  el.innerHTML = `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Week of <strong style="color:var(--text2);">${mon.toISOString().slice(0,10)}</strong> – <strong style="color:var(--text2);">${sun.toISOString().slice(0,10)}</strong></div>` + reportHTML('Weekly','📆',weekEntries);
+}
+function renderMonthly() {
+  const el = document.getElementById('report-monthly');
+  const month = appState.currentDate.slice(0,7);
+  const monthEntries = appState.entries.filter(e => e.date.startsWith(month));
+  const label = new Date(month+'-01').toLocaleDateString('en-PH',{year:'numeric',month:'long'});
+  el.innerHTML = `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Month: <strong style="color:var(--text2);">${label}</strong></div>` + reportHTML('Monthly','📈',monthEntries);
+}
+function renderYearly() {
+  const el = document.getElementById('report-yearly');
+  const year = appState.currentDate.slice(0,4);
+  const yearEntries = appState.entries.filter(e => e.date.startsWith(year));
+  el.innerHTML = `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Year: <strong style="color:var(--text2);">${year}</strong></div>` + reportHTML('Yearly','🗓️',yearEntries);
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+function init() {
+  load();
+  appState.currentDate = appState.currentDate || today();
+  updateDateDisplay();
+  renderSkuList();
+}
+init();
+</script>
+</body>
+</html>
